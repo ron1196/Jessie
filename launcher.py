@@ -26,7 +26,7 @@ def run_jessie(autorestart):
     if interpreter is None:
         raise RuntimeError("Python could not be found")
 
-    cmd = [interpreter, "-m", "Jessie", "launcher"]
+    cmd = [interpreter, "-m", "jessie", "launcher"]
 
     retries = 0
 

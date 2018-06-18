@@ -72,4 +72,4 @@ if __name__ == '__main__':
     dirname = os.path.dirname(abspath)
     os.chdir(dirname)
     print("Launching Jessie...")
-    run_Meo(autorestart=args.auto_restart)
+    run_jessie(autorestart=args.auto_restart)

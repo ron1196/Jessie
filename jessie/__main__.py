@@ -227,22 +227,13 @@ async def nest(ctx):
     
     pokemon_role = discord.utils.get(guild.roles, name=pokemon)
     if pokemon_role:
-        pokemon_role = "{pokemon}".format(pokemon=role.mention)
+        pokemon_role = f"{pokemon_role.name.title()} nest reported in {location['name_eng']} - {pokemon_role.mention}!"
     else:
         pokemon_role = ""
     
-    msg = await channel.send(description=pokemon_role, embed=create_nest_embed(pokemon, location))
+    msg = await channel.send(pokemon_role, embed=create_nest_embed(pokemon, location))
     guild_dict[ctx.guild.id]['nests'].addNest(location, pokemon)
     
-    """await asyncio.sleep(30)
-    await message.delete()
-    await msg.delete()
-    
-    try:
-        pin_message = await channel.get_message(guild_dict[guild.id]['message'])
-        await pin_message.edit(embed=discord.Embed(description=_list(guild)))
-    except:
-        pass"""
 
 @Jessie.command(aliases=['f'])
 async def find(ctx):

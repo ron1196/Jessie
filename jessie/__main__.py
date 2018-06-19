@@ -224,8 +224,14 @@ async def nest(ctx):
     if location is None:
         await channel.send('Give me a valid location name!')
         return
-       
-    msg = await channel.send(embed=create_nest_embed(pokemon, location))
+    
+    pokemon_role = discord.utils.get(guild.roles, name=pokemon)
+    if pokemon_role:
+        pokemon_role = "{pokemon}".format(pokemon=role.mention)
+    else:
+        pokemon_role = ""
+    
+    msg = await channel.send(description=pokemon_role, embed=create_nest_embed(pokemon, location))
     guild_dict[ctx.guild.id]['nests'].addNest(location, pokemon)
     
     """await asyncio.sleep(30)

@@ -1,4 +1,4 @@
-﻿import discord
+import discord
 from discord.ext import commands
 import asyncio
 import json
@@ -8,6 +8,7 @@ import sys
 import pickle
 import dropbox
 from urllib.request import urlopen
+import tempfile
 
 class NestMap:
     def __init__(self):
@@ -44,12 +45,16 @@ locations = {}
 def load_data():
     global guild_dict
     try:
-        with open(os.path.join('data', 'guild_dict'), 'rb') as fd:
+        with open(os.path.join('data', 'serverdict'), 'rb') as fd:
             guild_dict = pickle.load(fd)
     except OSError:
-        with open(os.path.join('data', 'guild_dict'), 'wb') as fd:
+        try:
+            with open(os.path.join('data', 'serverdict_backup'), 'rb') as fd:
+                guild_dict = pickle.load(fd)
+        except OSError:
             guild_dict = {}
-            pickle.dump(guild_dict, fd, (- 1))
+            with open(os.path.join('data', 'serverdict'), 'wb') as fd:
+                pickle.dump(guild_dict, fd, (- 1))
             
     global pokemons
     with open(os.path.join('data', 'pokemons.json'), 'r') as fd:
@@ -74,10 +79,18 @@ def load_data():
 load_data()
 
 async def save():
-    with open(os.path.join('data', 'guild_dict_tmp'), 'wb') as fd:
-        pickle.dump(guild_dict, fd, (- 1))
-    os.remove(os.path.join('data', 'guild_dict'))
-    os.rename(os.path.join('data', 'guild_dict_tmp'), os.path.join('data', 'guild_dict'))
+    with tempfile.NamedTemporaryFile('wb', dir=os.path.dirname(os.path.join('data', 'serverdict')), delete=False) as tf:
+        pickle.dump(guild_dict, tf, (- 1))
+        tempname = tf.name
+    try:
+        os.remove(os.path.join('data', 'serverdict_backup'))
+    except OSError as e:
+        pass
+    try:
+        os.rename(os.path.join('data', 'serverdict'), os.path.join('data', 'serverdict_backup'))
+    except OSError as e:
+        pass
+    os.rename(tempname, os.path.join('data', 'serverdict'))
 
 """
 Events
@@ -99,6 +112,33 @@ async def on_ready():
     except KeyboardInterrupt as e:
         pass
 event_loop = asyncio.get_event_loop()
+
+@Jessie.event
+async def on_raw_reaction_add(payload): # await msg_list.add_reaction("🇺🇸") await msg_list.add_reaction("🇮🇱")
+    channel = Jessie.get_channel(payload.channel_id)
+    try:
+        message = await channel.get_message(payload.message_id)
+    except (discord.errors.NotFound, AttributeError):
+        return
+    guild = message.guild
+    try:
+        user = guild.get_member(payload.user_id)
+    except AttributeError:
+        return
+    if user.id == Jessie.user.id:
+        return
+        
+    if len(message.embeds) > 0 and message.embeds[0].title == "Nests":
+        if message.reactions[0].emoji == "🇮🇱":
+            embed = await list_nests(guild, channel, "heb")
+            await message.edit(embed=embed)
+            await message.clear_reactions()
+            await message.add_reaction("🇺🇸")
+        else:
+            embed = await list_nests(guild, channel, "eng")
+            await message.edit(embed=embed)
+            await message.clear_reactions()
+            await message.add_reaction("🇮🇱")
 
 @Jessie.event
 async def on_guild_join(guild):
@@ -294,16 +334,16 @@ async def check(ctx):
         
     await channel.send(embed=create_nest_embed(locToPoke[location['name_eng']], location))
 
-async def list_nests(ctx):    
-    guild = ctx.guild
-    message = ctx.message
-    channel = message.channel
+async def list_nests(guild, channel, lang = "heb"):        
+    if lang == "heb":
+        lang = 'name_heb'
+    else:
+        lang = 'name_eng'
     
     spawn_point_pokemons = []
     nests_of_pokemons = []
     
     pokeToLoc = guild_dict[guild.id]['nests'].pokeToLoc
-    print (pokeToLoc)
     for pokemon, poke_locations in pokeToLoc.items():
         point_locations = []
         nests_locations = []
@@ -325,25 +365,20 @@ async def list_nests(ctx):
     
     nests_msg = ""
     if len(nests_of_pokemons) != 0:
-        nests_msg += "__**Nests**__\n"
         for pokemon, locs in nests_of_pokemons:
             if len(nests_msg) < 1800:
-                #nests_msg += f"{pokemon.title().ljust(12, ' ')}  [{locs[0]['name_eng']}]({locs[0]['map_link']}) | {locs[0]['name_heb']}" + "\n"
-                nests_msg += f"{pokemon.title().ljust(12, ' ')}  {locs[0]['name_heb']}" + "\n"
+                nests_msg += f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             else:
                 embed = discord.Embed(description=nests_msg)
                 await channel.send(embed=embed)
-                #nests_msg = f"{pokemon.title().ljust(12, ' ')}  [{locs[0]['name_eng']}]({locs[0]['map_link']}) | {locs[0]['name_heb']}" + "\n"
-                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0]['name_heb']}" + "\n"
+                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             for location in locs[1:]:
                 if len(nests_msg) < 1800:
-                    #nests_msg += f"{' '*20}  [{location['name_eng']}]({location['map_link']}) | {location['name_heb']}" + "\n"
-                    nests_msg += f"{'⠀'*7}  {location['name_heb']}" + "\n"
+                    nests_msg += f"{'⠀'*7}  {location[lang]}" + "\n"
                 else:
                     embed = discord.Embed(description=nests_msg)
                     await channel.send(embed=embed)
-                    #nests_msg = f"{' '*20}  [{location['name_eng']}]({location['map_link']}) | {location['name_heb']}" + "\n"
-                    nests_msg += f"{'⠀'*7}  {location['name_heb']}" + "\n"
+                    nests_msg += f"{'⠀'*7}  {location[lang]}" + "\n"
     if len(spawn_point_pokemons) != 0:
         if len(nests_msg) < 1800:
             nests_msg += "\n__**Frequent Spawn Point**__\n"
@@ -353,25 +388,23 @@ async def list_nests(ctx):
             nests_msg = "\n__**Frequent Spawn Point**__\n"
         for pokemon, locs in spawn_point_pokemons:
             if len(nests_msg) < 1800:
-                #nests_msg += f"{pokemon.title().ljust(12, ' ')}  [{locs[0]['name_eng']}]({locs[0]['map_link']}) | {locs[0]['name_heb']}" + "\n"
-                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0]['name_heb']}" + "\n"
+                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             else:
                 embed = discord.Embed(description=nests_msg)
                 await channel.send(embed=embed)
-                #nests_msg = f"{pokemon.title().ljust(12, ' ')}  [{locs[0]['name_eng']}]({locs[0]['map_link']}) | {locs[0]['name_heb']}" + "\n"
-                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0]['name_heb']}" + "\n"
+                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             for location in locs[1:]:
                 if len(nests_msg) < 1800:
-                    #nests_msg += f"{' '*20}  [{location['name_eng']}]({location['map_link']}) | {location['name_heb']}" + "\n"
-                    nests_msg += f"{' '*20}  {location['name_heb']}" + "\n"
+                    nests_msg += f"{' '*20}  {location[lang]}" + "\n"
                 else:
                     embed = discord.Embed(description=nests_msg)
                     await channel.send(embed=embed)
-                    #nests_msg = f"{' '*20}  [{location['name_eng']}]({location['map_link']}) | {location['name_heb']}" + "\n"
-                    nests_msg += f"{' '*20}  {location['name_heb']}" + "\n"
+                    nests_msg += f"{' '*20}  {location[lang]}" + "\n"
     nests_msg += "\nכדי לראות את הקנים על מפה היכנסו ל:\nhttps://thesilphroad.com/atlas#11.48/31.785/35.2066"
-    embed = discord.Embed(description=nests_msg)
-    await channel.send(embed=embed)
+    
+    embed = discord.Embed(title="Nests", description=nests_msg)
+    return embed    
+    
     
 @Jessie.group(name='list', aliases=['lists', 'l'])
 async def _list(ctx):
@@ -382,7 +415,14 @@ async def _list(ctx):
     if ctx.invoked_subcommand != None:
         return
         
-    await list_nests(ctx)
+    guild = ctx.guild
+    message = ctx.message
+    channel = message.channel
+        
+    embed = await list_nests(guild, channel)
+    msg_list = await channel.send(embed=embed)
+    await msg_list.add_reaction("🇺🇸")
+    
 
 @_list.command(name='locations', aliases=['locs'])
 async def _locations(ctx, *, language = "h"):

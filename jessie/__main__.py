@@ -34,15 +34,13 @@ class NestMap:
             self.pokeToLoc[lastPokemonReported] = [x for x in self.pokeToLoc[lastPokemonReported] if not x['name_eng'] == location['name_eng']]
         del self.locToPoke[location['name_eng']]
 
-TOKEN = 'NDA5OTc0Mzc5MzE3OTUyNTIz.DYmdug.9s14UBTOWKccf93ISi24d9wrhEE'
-Jessie = commands.Bot(command_prefix='!', owner_id=195097871626928128)
-
-DROPBOX_TOKEN = "bUcu0SDbjZQAAAAAAAAIDuGE3CPVOfRfrF3XkcXHzKBtYAfdpgyGdQVqWodaXpQR"
-
-pokemons = []
-locations = {}
-
 def load_data():
+    # Load configuration
+    global config
+    with open('config.json', 'r') as fd:
+        config = json.load(fd)
+    
+    # Load Guild Dict
     global guild_dict
     try:
         with open(os.path.join('data', 'serverdict'), 'rb') as fd:
@@ -55,11 +53,13 @@ def load_data():
             guild_dict = {}
             with open(os.path.join('data', 'serverdict'), 'wb') as fd:
                 pickle.dump(guild_dict, fd, (- 1))
-            
+    
+    # Load Pokemon list
     global pokemons
     with open(os.path.join('data', 'pokemons.json'), 'r') as fd:
         pokemons = json.load(fd)['pokemon_list']
     
+    # Load Locations list
     global locations
     try:
         with urlopen("https://www.dropbox.com/s/8lkr25odjen8wvr/locations.json?dl=1" ) as response:
@@ -72,11 +72,12 @@ def load_data():
     except e:
         with open(os.path.join('data', 'locations.json'), 'r') as fd:
             locations = json.load(fd)
-            
     for location in locations['locations']:
         locations[location['name_eng']] = location
-    del locations['locations'] 
+    del locations['locations']
+    
 load_data()
+Jessie = commands.Bot(command_prefix=config['default_prefix'], owner_id=config['master'])
 
 async def save():
     with tempfile.NamedTemporaryFile('wb', dir=os.path.dirname(os.path.join('data', 'serverdict')), delete=False) as tf:
@@ -520,7 +521,7 @@ async def exit(ctx):
     
     
 try:
-    event_loop.run_until_complete(Jessie.start(TOKEN))
+    event_loop.run_until_complete(Jessie.start(config['bot_token']))
 except discord.LoginFailure:
     # Invalid token
     event_loop.run_until_complete(Jessie.logout())

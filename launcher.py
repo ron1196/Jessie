@@ -61,7 +61,7 @@ def run_jessie(autorestart):
                     sys.stdout.write(
                         "Restarting Jessie from crash in {:0d}".format(i))
                     sys.stdout.flush()
-                    time.sleep()
+                    time.sleep(1)
 
     print("Jessie has closed. Exit code: {exit_code}".format(exit_code=code))
 

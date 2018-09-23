@@ -1,4 +1,4 @@
-import discord
+﻿import discord
 from discord.ext import commands
 import asyncio
 import json
@@ -23,7 +23,6 @@ class NestMap:
             self.pokeToLoc[lastPokemonReported].remove(location)
         
         self.locToPoke[ location['name_eng'] ] = pokemon
-        
         if not self.pokeToLoc.get(pokemon, None):
             self.pokeToLoc[pokemon] = []
         self.pokeToLoc[pokemon].append(location)
@@ -77,7 +76,7 @@ def load_data():
     del locations['locations']
     
 load_data()
-Jessie = commands.Bot(command_prefix=config['default_prefix'], owner_id=config['master'])
+Jessie = commands.Bot(command_prefix=config['default_prefix'], owner_id=config['master'], case_insensitive=True)
 
 async def save():
     with tempfile.NamedTemporaryFile('wb', dir=os.path.dirname(os.path.join('data', 'serverdict')), delete=False) as tf:
@@ -335,7 +334,7 @@ async def check(ctx):
         
     await channel.send(embed=create_nest_embed(locToPoke[location['name_eng']], location))
 
-async def list_nests(guild, channel, lang = "heb"):        
+async def list_nests(guild, channel, lang = "heb"): 
     if lang == "heb":
         lang = 'name_heb'
     else:
@@ -359,52 +358,46 @@ async def list_nests(guild, channel, lang = "heb"):
             nests_of_pokemons.append( (pokemon, nests_locations) )
     
     if len(nests_of_pokemons) == 0 and len(spawn_point_pokemons) == 0:
-        return 'No nests reported!'
+        return discord.Embed(title="Nests", description='No nests reported!') 
     
     spawn_point_pokemons.sort(key=lambda tup: tup[0])
     nests_of_pokemons.sort(key=lambda tup: tup[0])
-    
+	
     nests_msg = ""
     if len(nests_of_pokemons) != 0:
         for pokemon, locs in nests_of_pokemons:
-            if len(nests_msg) < 1800:
+            if len(nests_msg + f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n") < 1800:
                 nests_msg += f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             else:
-                embed = discord.Embed(description=nests_msg)
-                await channel.send(embed=embed)
+                await channel.send(embed=discord.Embed(description=nests_msg))
                 nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             for location in locs[1:]:
-                if len(nests_msg) < 1800:
+                if len(nests_msg + f"{'⠀'*7}  {location[lang]}" + "\n") < 1800:
                     nests_msg += f"{'⠀'*7}  {location[lang]}" + "\n"
                 else:
-                    embed = discord.Embed(description=nests_msg)
-                    await channel.send(embed=embed)
-                    nests_msg += f"{'⠀'*7}  {location[lang]}" + "\n"
+                    await channel.send(embed=discord.Embed(description=nests_msg))
+                    nests_msg = f"{'⠀'*7}  {location[lang]}" + "\n"
     if len(spawn_point_pokemons) != 0:
-        if len(nests_msg) < 1800:
+        if len(nests_msg + "\n__**Frequent Spawn Point**__\n") < 1800:
             nests_msg += "\n__**Frequent Spawn Point**__\n"
         else:
-            embed = discord.Embed(description=nests_msg)
-            await channel.send(embed=embed)
+            await channel.send(embed=discord.Embed(description=nests_msg))
             nests_msg = "\n__**Frequent Spawn Point**__\n"
         for pokemon, locs in spawn_point_pokemons:
-            if len(nests_msg) < 1800:
-                nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
+            if len(nests_msg + f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n") < 1800:
+                nests_msg += f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             else:
-                embed = discord.Embed(description=nests_msg)
-                await channel.send(embed=embed)
+                await channel.send(embed=discord.Embed(description=nests_msg))
                 nests_msg = f"{pokemon.title().ljust(12, ' ')}  {locs[0][lang]}" + "\n"
             for location in locs[1:]:
-                if len(nests_msg) < 1800:
+                if len(nests_msg + f"{' '*20}  {location[lang]}" + "\n") < 1800:
                     nests_msg += f"{' '*20}  {location[lang]}" + "\n"
                 else:
-                    embed = discord.Embed(description=nests_msg)
-                    await channel.send(embed=embed)
-                    nests_msg += f"{' '*20}  {location[lang]}" + "\n"
+                    await channel.send(embed=discord.Embed(description=nests_msg))
+                    nests_msg = f"{' '*20}  {location[lang]}" + "\n"
     nests_msg += "\nכדי לראות את הקנים על מפה היכנסו ל:\nhttps://thesilphroad.com/atlas#11.48/31.785/35.2066"
-    
-    embed = discord.Embed(title="Nests", description=nests_msg)
-    return embed    
+	
+    return discord.Embed(title="Nests", description=nests_msg)    
     
     
 @Jessie.group(name='list', aliases=['lists', 'l'])
@@ -419,7 +412,7 @@ async def _list(ctx):
     guild = ctx.guild
     message = ctx.message
     channel = message.channel
-        
+    
     embed = await list_nests(guild, channel)
     msg_list = await channel.send(embed=embed)
     await msg_list.add_reaction("🇺🇸")
